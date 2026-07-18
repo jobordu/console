@@ -2,6 +2,13 @@ import type { BrowserContext } from "@playwright/test";
 
 import type { EmailVerificationStrategy } from "./email-verification.strategy";
 
+/**
+ * Match a 6-digit number that appears within ~200 chars after the word "code"
+ * (case-insensitive). Anchoring on the keyword avoids matching unrelated 6-digit
+ * substrings (timestamps, order IDs) if the inbox ever receives non-OTP mail.
+ */
+const CODE_NEAR_KEYWORD = /\bcode\b[\s\S]{0,200}?\b(\d{6})\b/i;
+
 export class MailsacCodeVerificationStrategy implements EmailVerificationStrategy {
   private readonly baseUrl = "https://mailsac.com/api";
 
@@ -28,18 +35,24 @@ export class MailsacCodeVerificationStrategy implements EmailVerificationStrateg
   private async pollForVerificationCode(email: string): Promise<string> {
     const maxAttempts = 30;
     const pollIntervalMs = 2_000;
+    let lastMessageCount = 0;
+    let lastSubject: string | undefined;
+    let lastBodyPreview: string | undefined;
+    let codeNotFoundInBody = false;
     const errors: Error[] = [];
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const messages = await this.fetchMessages(email);
+        lastMessageCount = messages.length;
 
-        const verificationMessage = messages.find(m => m.subject?.toLowerCase().includes("verif") || m.subject?.toLowerCase().includes("code"));
-
-        if (verificationMessage) {
-          const body = await this.fetchMessageBody(email, verificationMessage._id);
-          const match = body.match(/\b(\d{6})\b/);
-          if (match) return match[1];
+        for (const message of messages) {
+          lastSubject = message.subject;
+          const body = await this.fetchMessageBody(email, message._id);
+          lastBodyPreview = body.slice(0, 200);
+          const match = body.match(CODE_NEAR_KEYWORD);
+          if (match?.[1]) return match[1];
+          codeNotFoundInBody = true;
         }
       } catch (error) {
         errors.push(error instanceof Error ? error : new Error(String(error)));
@@ -48,7 +61,18 @@ export class MailsacCodeVerificationStrategy implements EmailVerificationStrateg
       await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
     }
 
-    throw new AggregateError(errors, `Verification code email not received at ${email} within ${(maxAttempts * pollIntervalMs) / 1_000}s`);
+    const timeoutSec = (maxAttempts * pollIntervalMs) / 1_000;
+    const hints = [
+      `email: ${email}`,
+      `timeout: ${timeoutSec}s`,
+      `messages found: ${lastMessageCount}`,
+      lastSubject ? `last subject seen: "${lastSubject}"` : "no messages seen",
+      codeNotFoundInBody ? `6-digit code not found in body: "${lastBodyPreview}"` : null
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    throw new AggregateError(errors, `Verification code not received. ${hints}`);
   }
 
   private async fetchMessages(email: string) {

@@ -2,7 +2,13 @@ import { z } from "zod";
 
 export const schema = z.object({
   BLOCK_TIME_SEC: z.number({ coerce: true }).optional().default(6),
-  RPC_NODE_ENDPOINT: z.string()
+  BLOCK_STALE_THRESHOLD_SEC: z.number({ coerce: true }).optional().default(300),
+  RPC_NODE_ENDPOINT: z.string(),
+  START_FROM_LATEST_BLOCK: z
+    .enum(["true", "false"])
+    .optional()
+    .default("false")
+    .transform(value => value === "true")
 });
 
 export type ChainEventsEnvConfig = z.infer<typeof schema>;

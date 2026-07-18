@@ -2,6 +2,13 @@
 
 import * as amplitude from "@amplitude/analytics-browser";
 import { sessionReplayPlugin } from "@amplitude/plugin-session-replay-browser";
+
+declare global {
+  interface Window {
+    dataLayer?: Record<string, unknown>[];
+  }
+}
+
 export type AnalyticsUser = {
   id?: string;
   anonymous?: boolean;
@@ -32,11 +39,6 @@ export type AnalyticsEvent =
   | "disconnect_wallet"
   | "successful_tx"
   | "failed_tx"
-  | "revoke_certificate"
-  | "revoke_all_certificates"
-  | "create_certificate"
-  | "regenerate_certificate"
-  | "export_certificate"
   | "deployment_deposit"
   | "close_deployment"
   | "use_depositor"
@@ -49,8 +51,6 @@ export type AnalyticsEvent =
   | "create_gpu_deployment"
   | "authorize_spend"
   | "navigate_tab"
-  | "leap_get_more_tokens"
-  | "leap_tx_complete"
   | "deploy_sdl"
   | "preview_sdl"
   | "import_sdl"
@@ -74,7 +74,7 @@ export type AnalyticsEvent =
   | "delete_api_key"
   | "close_deposit_modal"
   | "buy_credits_btn_clk"
-  | "resend_verification_email_btn_clk"
+  | "send_verification_code_btn_clk"
   | "builder_mode_btn_clk"
   | "yml_mode_btn_clk"
   | "bid_selected"
@@ -107,17 +107,7 @@ export type AnalyticsEvent =
   | "log_collector_disabled"
   | "log_collector_deployed";
 
-export type AnalyticsCategory =
-  | "user"
-  | "billing"
-  | "deployments"
-  | "wallet"
-  | "sdl_builder"
-  | "transactions"
-  | "certificates"
-  | "profile"
-  | "settings"
-  | "onboarding";
+export type AnalyticsCategory = "user" | "billing" | "deployments" | "wallet" | "sdl_builder" | "transactions" | "profile" | "settings" | "onboarding";
 
 export type EventProperties = {
   category?: AnalyticsCategory;
@@ -125,9 +115,7 @@ export type EventProperties = {
 };
 
 const GA_EVENTS = {
-  successful_tx: "successful_transaction",
-  leap_tx_complete: "leap_transaction_complete",
-  revoke_all_certificates: "revoke_all_certificate"
+  successful_tx: "successful_transaction"
 };
 
 const AMPLITUDE_USER_PROPERTIES_MAP = {

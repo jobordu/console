@@ -8,9 +8,6 @@ inputs:
   url:
     description: Base URL to Console Web
     required: true
-  test-wallet-mnemonic:
-    description: Test wallet mnemonic
-    required: true
   slack-webhook-url:
     description: Slack webhook URL
     required: false
@@ -34,9 +31,15 @@ inputs:
     description: Mailsac API key for email verification
     required: true
   email-verification-strategy:
-    description: Email verification strategy (mailsac or auth0-ticket)
+    description: Email verification strategy (mailsac-code or auth0-ticket)
     required: false
-    default: "mailsac"
+    default: "mailsac-code"
+  test-user-email:
+    description: Pre-registered test user email for authenticated tests
+    required: false
+  test-user-password:
+    description: Pre-registered test user password for authenticated tests
+    required: false
 
 runs:
   using: "composite"
@@ -55,7 +58,6 @@ runs:
     - name: Run e2e tests
       id: e2e-tests
       env:
-        TEST_WALLET_MNEMONIC: ${{ inputs.test-wallet-mnemonic }}
         BASE_URL: ${{ inputs.url }}
         E2E_TESTING_CLIENT_TOKEN: ${{ inputs.testing-client-token }}
         AUTH0_M2M_DOMAIN: ${{ inputs.auth0-m2m-domain }}
@@ -63,18 +65,13 @@ runs:
         AUTH0_M2M_CLIENT_SECRET: ${{ inputs.auth0-m2m-client-secret }}
         MAILSAC_API_KEY: ${{ inputs.mailsac-api-key }}
         EMAIL_VERIFICATION_STRATEGY: ${{ inputs.email-verification-strategy }}
+        TEST_USER_EMAIL: ${{ inputs.test-user-email }}
+        TEST_USER_PASSWORD: ${{ inputs.test-user-password }}
         USER_DATA_DIR: ${{ runner.temp }}/chrome-profile-${{ github.run_id }}-${{ github.run_attempt }}
         CI: "true"
       shell: bash
       run: npm run test:e2e --workspace=apps/deploy-web
-    - name: Tests cleanup
-      if: ${{ !cancelled() }}
-      shell: bash
-      env:
-        TEST_WALLET_MNEMONIC: ${{ inputs.test-wallet-mnemonic }}
-      run: |
-        npx --yes tsx@4.20.6 apps/deploy-web/script/closeDeployments.ts
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       id: playwright-report
       if: ${{ !cancelled() }}
       with:
@@ -94,10 +91,13 @@ runs:
     - name: Summarize Test Results
       if: ${{ !cancelled() }}
       shell: bash
-      run: |
+      env:
+        STEPS_E2E_TESTS_OUTCOME: ${{ steps.e2e-tests.outcome }}
+        STEPS_PLAYWRIGHT_REPORT_OUTPUTS_ARTIFACT_URL: ${{ steps.playwright-report.outputs.artifact-url }}
+      run: | # shell
         echo "### 📝 E2E Test Summary" >> $GITHUB_STEP_SUMMARY
         prefix=":white_check_mark: Passed"
-        if [ "${{ steps.e2e-tests.outcome }}" == "failure" ]; then
+        if [ "${STEPS_E2E_TESTS_OUTCOME}" == "failure" ]; then
           prefix=":x: Failed"
         fi
-        echo "${prefix}, [download tests report](${{ steps.playwright-report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
+        echo "${prefix}, [download tests report](${STEPS_PLAYWRIGHT_REPORT_OUTPUTS_ARTIFACT_URL})" >> $GITHUB_STEP_SUMMARY

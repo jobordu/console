@@ -21,4 +21,19 @@ describe("createStargateClient", () => {
     expect(MockStargateClient.connect).toHaveBeenCalledWith(rpcNodeEndpoint);
     expect(client).toBe(mockClient);
   });
+
+  it("should retry connecting when RPC is temporarily unavailable", async () => {
+    const config = mock<ConfigService>();
+    const mockClient = mock<StargateClient>();
+    const MockStargateClient = {
+      connect: vi.fn().mockRejectedValueOnce(new Error("ECONNREFUSED")).mockRejectedValueOnce(new Error("ECONNREFUSED")).mockResolvedValue(mockClient)
+    };
+    const rpcNodeEndpoint = faker.internet.url();
+    config.getOrThrow.mockReturnValue(rpcNodeEndpoint);
+
+    const client = await createStargateClientFactory(MockStargateClient as unknown as typeof StargateClient)(config);
+
+    expect(MockStargateClient.connect).toHaveBeenCalledTimes(3);
+    expect(client).toBe(mockClient);
+  });
 });

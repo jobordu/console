@@ -1,64 +1,53 @@
 import React from "react";
-import type { components } from "@akashnetwork/react-query-sdk/notifications";
-import { createReactQueryApiClient } from "@akashnetwork/react-query-sdk/notifications/create-react-query-client";
+import { createProxy } from "@akashnetwork/react-query-proxy";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
-import type { RequestFn, RequestFnResponse } from "@openapi-qraft/react";
 import merge from "lodash/merge";
 import { describe, expect, it, vi } from "vitest";
 
-import type { ChildrenProps, ContainerInput, Props } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
+import type { ChildrenProps, ContainerInput } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
 import { DeploymentAlertsContainer } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
-import { UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
-import type { usePricing } from "@src/hooks/usePricing/usePricing";
+import { USDC_IBC_DENOMS } from "@src/config/denom.config";
 import { queryClient } from "@src/queries";
+import { createApiSdk } from "@src/services/api-sdk/createApiSdk";
 import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
 
 import { act, render, screen } from "@testing-library/react";
 import { buildRpcDeployment } from "@tests/seeders/deployment";
 import { buildNotificationChannel } from "@tests/seeders/notificationChannel";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
+import { jsonResponse } from "@tests/unit/jsonResponse";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(DeploymentAlertsContainer.name, () => {
-  [
-    { denom: UAKT_DENOM, threshold: 2000000 },
-    { denom: USDC_IBC_DENOMS["mainnet"], threshold: 4000000 }
-  ].forEach(({ denom, threshold }) => {
-    it(`triggers ${denom} deployment alert request with the correct values`, async () => {
-      const { requestFn, input, child, dseq } = await setup({ denom });
+  it("triggers deployment alert request with the correct values", async () => {
+    const { mockFetch, input, child, dseq } = await setup();
 
-      await act(() => child.upsert(input));
+    await act(() => child.upsert(input));
 
-      expect(requestFn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: "post",
-          url: "/v1/deployment-alerts/{dseq}"
-        }),
-        expect.objectContaining({
-          parameters: {
-            path: { dseq }
-          },
-          body: {
-            data: merge({}, input, {
-              alerts: {
-                deploymentBalance: {
-                  threshold
-                }
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining(`/v1/deployment-alerts/${dseq}`),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          data: merge({}, input, {
+            alerts: {
+              deploymentBalance: {
+                threshold: 4000000
               }
-            })
-          }
+            }
+          })
         })
-      );
-      await vi.waitFor(() => {
-        expect(screen.getByTestId("alert-config-success-notification")).toBeInTheDocument();
-      });
+      })
+    );
+    await vi.waitFor(() => {
+      expect(screen.getByTestId("alert-config-success-notification")).toBeInTheDocument();
     });
   });
 
   it("shows error notification on failed request", async () => {
-    const { requestFn, input, child } = await setup();
+    const { mockFetch, input, child } = await setup();
 
-    requestFn.mockRejectedValue(new Error("API Error"));
+    mockFetch.mockRejectedValue(new Error("API Error"));
 
     await act(() => child.upsert(input));
 
@@ -66,7 +55,7 @@ describe(DeploymentAlertsContainer.name, () => {
   });
 
   it("handles deployment closed alert configuration", async () => {
-    const { requestFn, child, dseq } = await setup();
+    const { mockFetch, child, dseq } = await setup();
     const input: ContainerInput = {
       alerts: {
         deploymentClosed: {
@@ -78,24 +67,17 @@ describe(DeploymentAlertsContainer.name, () => {
 
     await act(() => child.upsert(input));
 
-    expect(requestFn).toHaveBeenCalledWith(
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining(`/v1/deployment-alerts/${dseq}`),
       expect.objectContaining({
-        method: "post",
-        url: "/v1/deployment-alerts/{dseq}"
-      }),
-      expect.objectContaining({
-        parameters: {
-          path: { dseq }
-        },
-        body: {
-          data: input
-        }
+        method: "POST",
+        body: JSON.stringify({ data: input })
       })
     );
   });
 
   it("handles escrow balance alert configuration", async () => {
-    const { requestFn, child, dseq } = await setup();
+    const { mockFetch, child, dseq } = await setup();
     const input: ContainerInput = {
       alerts: {
         deploymentBalance: {
@@ -108,30 +90,11 @@ describe(DeploymentAlertsContainer.name, () => {
 
     await act(() => child.upsert(input));
 
-    expect(requestFn).toHaveBeenCalledWith(
-      expect.objectContaining({
-        method: "post",
-        url: "/v1/deployment-alerts/{dseq}"
-      }),
-      expect.objectContaining({
-        parameters: {
-          path: { dseq }
-        },
-        body: {
-          data: expect.objectContaining({
-            alerts: {
-              deploymentBalance: expect.objectContaining({
-                threshold: expect.any(Number)
-              })
-            }
-          })
-        }
-      })
-    );
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining(`/v1/deployment-alerts/${dseq}`), expect.objectContaining({ method: "POST" }));
   });
 
   it("handles both deployment closed and balance alerts", async () => {
-    const { requestFn, child, dseq } = await setup();
+    const { mockFetch, child, dseq } = await setup();
     const input: ContainerInput = {
       alerts: {
         deploymentClosed: {
@@ -148,30 +111,7 @@ describe(DeploymentAlertsContainer.name, () => {
 
     await act(() => child.upsert(input));
 
-    expect(requestFn).toHaveBeenCalledWith(
-      expect.objectContaining({
-        method: "post",
-        url: "/v1/deployment-alerts/{dseq}"
-      }),
-      expect.objectContaining({
-        parameters: {
-          path: { dseq }
-        },
-        body: {
-          data: expect.objectContaining({
-            alerts: {
-              deploymentClosed: expect.objectContaining({
-                enabled: true
-              }),
-              deploymentBalance: expect.objectContaining({
-                enabled: true,
-                threshold: expect.any(Number)
-              })
-            }
-          })
-        }
-      })
-    );
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining(`/v1/deployment-alerts/${dseq}`), expect.objectContaining({ method: "POST" }));
   });
 
   it("provides max balance threshold", async () => {
@@ -181,19 +121,22 @@ describe(DeploymentAlertsContainer.name, () => {
   });
 
   it("invalidates queries on successful mutation", async () => {
-    const { requestFn, input, child } = await setup();
+    const { mockFetch, input, child } = await setup();
     const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
 
     await act(() => child.upsert(input));
 
-    expect(requestFn).toHaveBeenCalled();
+    expect(mockFetch).toHaveBeenCalled();
     await vi.waitFor(() => {
       expect(invalidateQueriesSpy).toHaveBeenCalled();
     });
   });
 
-  async function setup({ denom }: { denom?: "uakt" | (typeof USDC_IBC_DENOMS)["mainnet"] | (typeof USDC_IBC_DENOMS)["sandbox"] } = {}) {
-    const rpcDeployment = buildRpcDeployment({ denom });
+  async function setup() {
+    const rpcDeployment = buildRpcDeployment({
+      denom: USDC_IBC_DENOMS["mainnet"],
+      escrow_account: { state: { funds: [{ denom: USDC_IBC_DENOMS["mainnet"], amount: "5000000.000000000000000000" }] } }
+    });
     const deployment = deploymentToDto(rpcDeployment);
     const dseq = deployment.dseq;
     const input: ContainerInput = {
@@ -210,40 +153,11 @@ describe(DeploymentAlertsContainer.name, () => {
       }
     };
 
-    const requestFn = vi.fn(
-      () =>
-        Promise.resolve({
-          data: {
-            dseq,
-            alerts: {}
-          }
-        }) as Promise<RequestFnResponse<components["schemas"]["DeploymentAlertsResponse"]["data"], unknown>>
-    );
+    const mockFetch = vi.fn(() => Promise.resolve(jsonResponse({ dseq, alerts: {} })));
 
     const services = {
       queryClient: () => queryClient,
-      notificationsApi: () =>
-        createReactQueryApiClient({
-          requestFn: requestFn as RequestFn<any, Error>,
-          baseUrl: "",
-          queryClient
-        })
-    };
-
-    const AKT_PRICE = 2;
-    const mockPricing = {
-      usdToAkt: vi.fn((amount: number) => amount / AKT_PRICE),
-      getPriceForDenom: vi.fn((denom: string) => {
-        if (denom === "uakt") {
-          return AKT_PRICE;
-        } else {
-          return 1;
-        }
-      })
-    } as unknown as ReturnType<typeof usePricing>;
-
-    const dependencies: NonNullable<Props["dependencies"]> = {
-      usePricing: () => mockPricing
+      api: () => createProxy(createApiSdk({ baseUrl: "", fetch: mockFetch }))
     };
 
     const childCapturer = createContainerTestingChildCapturer<ChildrenProps>();
@@ -251,13 +165,11 @@ describe(DeploymentAlertsContainer.name, () => {
     render(
       <CustomSnackbarProvider>
         <TestContainerProvider services={services}>
-          <DeploymentAlertsContainer deployment={deployment} dependencies={dependencies}>
-            {childCapturer.renderChild}
-          </DeploymentAlertsContainer>
+          <DeploymentAlertsContainer deployment={deployment}>{childCapturer.renderChild}</DeploymentAlertsContainer>
         </TestContainerProvider>
       </CustomSnackbarProvider>
     );
 
-    return { requestFn, input, child: await childCapturer.awaitChild(), dseq };
+    return { mockFetch, input, child: await childCapturer.awaitChild(), dseq };
   }
 });

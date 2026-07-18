@@ -4,6 +4,8 @@ import { expect, test } from "./fixture/base-test";
 import { BuildTemplatePage } from "./pages/BuildTemplatePage";
 
 test.describe("SDL Builder Deployment Flow", () => {
+  test.use({ userType: "existing" });
+
   test("navigate to SDL builder page", async ({ page, context }) => {
     const { sdlBuilderPage } = await setup({ page, context });
 
@@ -22,14 +24,6 @@ test.describe("SDL Builder Deployment Flow", () => {
     await expect(sdlBuilderPage.getPreviewTextLocator("services:")).toBeVisible();
 
     await sdlBuilderPage.closePreview();
-  });
-
-  test("create deployment from SDL builder", async ({ page, context }) => {
-    const { sdlBuilderPage } = await setup({ page, context, imageName: "nginx:alpine" });
-
-    await sdlBuilderPage.clickDeploy();
-
-    await expect(page.getByTestId("connect-wallet-btn").first()).toBeVisible({ timeout: 10000 });
   });
 
   test("add multiple services", async ({ page, context }) => {
@@ -86,7 +80,7 @@ test.describe("SDL Builder Deployment Flow", () => {
   });
 
   test("preview button always available with valid image", async ({ page, context }) => {
-    const sdlBuilderPage = new BuildTemplatePage(context, page, "sdl-builder");
+    const sdlBuilderPage = new BuildTemplatePage(context, page);
     await sdlBuilderPage.gotoInteractive();
 
     await sdlBuilderPage.fillImageName("alpine:latest");
@@ -95,7 +89,7 @@ test.describe("SDL Builder Deployment Flow", () => {
   });
 
   async function setup({ page, context, imageName }: { page: Page; context: BrowserContext; imageName?: string }) {
-    const sdlBuilderPage = new BuildTemplatePage(context, page, "sdl-builder");
+    const sdlBuilderPage = new BuildTemplatePage(context, page);
     await sdlBuilderPage.gotoInteractive();
 
     if (imageName) {

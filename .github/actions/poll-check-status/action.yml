@@ -28,7 +28,7 @@ runs:
   using: "composite"
   steps:
     - name: 'Poll check status'
-      uses: actions/github-script@v7
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
         CHECK_NAME: ${{ inputs.name }}
         CHECK_SHA: ${{ inputs.sha || github.sha }}
@@ -37,7 +37,7 @@ runs:
         MAX_RETRIES: ${{ inputs.max_retries }}
         EXPECTED_CONCLUSIONS: ${{ inputs.expected_conclusions }}
       with:
-        script: |
+        script: | # js
           const checkName = process.env.CHECK_NAME;
           const sha = process.env.CHECK_SHA;
           const checkType = process.env.CHECK_TYPE;

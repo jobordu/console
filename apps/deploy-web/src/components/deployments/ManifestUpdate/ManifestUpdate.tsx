@@ -22,7 +22,6 @@ import RemoteDeployUpdate from "../../remote-deploy/update/RemoteDeployUpdate";
 import { SDLEditor } from "../../sdl/SDLEditor/SDLEditor";
 import { ManifestErrorSnackbar } from "../../shared/ManifestErrorSnackbar/ManifestErrorSnackbar";
 import { Title } from "../../shared/Title";
-import { CreateCredentialsButton } from "../CreateCredentialsButton/CreateCredentialsButton";
 
 export const DEPENDENCIES = {
   Alert,
@@ -36,7 +35,6 @@ export const DEPENDENCIES = {
   SDLEditor,
   ManifestErrorSnackbar,
   Title,
-  CreateCredentialsButton,
   InfoCircle,
   WarningCircle,
   useWallet: useWalletOriginal,
@@ -134,7 +132,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
       const doc = yaml.load(editedManifest);
 
       const dd = await d.deploymentData.NewDeploymentData(chainApiHttpClient, editedManifest, deployment.dseq, address); // TODO Flags
-      const mani = d.deploymentData.getManifest(doc, true);
+      const mani = d.deploymentData.getManifest(doc);
 
       // If it's actual update, send a transaction, else just send the manifest
       if (Buffer.from(dd.hash).toString("base64") !== deployment.hash) {
@@ -243,20 +241,22 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
               </div>
 
               <div>
-                {!providerCredentials.details.usable ? (
-                  <d.CreateCredentialsButton containerClassName="flex items-center space-x-4 text-sm" className="" size="sm" />
-                ) : (
-                  <d.Button
-                    disabled={
-                      !!parsingError || !editedManifest || !providers || isSendingManifest || deployment.state !== "active" || settings.isBlockchainDown
-                    }
-                    onClick={() => handleUpdateClick()}
-                    size="sm"
-                    type="button"
-                  >
-                    Update Deployment
-                  </d.Button>
-                )}
+                <d.Button
+                  disabled={
+                    !providerCredentials.details.usable ||
+                    !!parsingError ||
+                    !editedManifest ||
+                    !providers ||
+                    isSendingManifest ||
+                    deployment.state !== "active" ||
+                    settings.isBlockchainDown
+                  }
+                  onClick={() => handleUpdateClick()}
+                  size="sm"
+                  type="button"
+                >
+                  Update Deployment
+                </d.Button>
               </div>
             </div>
 

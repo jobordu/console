@@ -148,7 +148,7 @@ export class ProviderProxyService {
     filePath: string;
   }): Promise<DownloadMessagesResult> {
     const printCommand = "cat"; // print command on Windows is "type"
-    const session = this.connectToShell({ ...input, command: `${printCommand} ${input.filePath}` });
+    const session = this.connectToShell({ ...input, command: [printCommand, input.filePath] });
 
     session.send(new Uint8Array());
 
@@ -270,13 +270,11 @@ export class ProviderProxyService {
     service: string;
     useStdIn?: boolean;
     useTTY?: boolean;
-    command?: string;
+    command?: string[];
     signal?: AbortSignal;
   }): WebsocketSession<Uint8Array, ReceivedShellMessage> {
-    const command = (input.command || "/bin/sh")
-      .split(" ")
-      .map((c, i) => `&cmd${i}=${encodeURIComponent(c.replace(" ", "+"))}`)
-      .join("");
+    const argv = input.command ?? ["sh", "-c", "command -v bash >/dev/null 2>&1 && exec bash || exec sh"];
+    const command = argv.map((c, i) => `cmd${i}=${encodeURIComponent(c)}`).join("&");
     const url = `${providerLeaseUrl({ ...input, type: "shell" })}?stdin=${input.useStdIn ? "1" : "0"}&tty=${input.useTTY ? "1" : "0"}&podIndex=0&${command}&service=${encodeURIComponent(input.service)}`;
 
     return new WebsocketSession<Uint8Array, ReceivedShellMessage>({
@@ -333,40 +331,17 @@ export interface SendManifestToProviderOptions {
   credentials?: ProviderCredentials | null;
 }
 
-export type ProviderCredentials =
-  | {
-      type: "mtls";
-      value:
-        | {
-            cert: string;
-            key: string;
-          }
-        | null
-        | undefined;
-    }
-  | {
-      type: "jwt";
-      value: string | undefined | null;
-    };
+export type ProviderCredentials = {
+  type: "jwt";
+  value: string | undefined | null;
+};
 
-export type ProviderApiCredentials =
-  | {
-      type: "mtls";
-      certPem: string;
-      keyPem: string;
-    }
-  | {
-      type: "jwt";
-      token: string;
-    };
+export type ProviderApiCredentials = {
+  type: "jwt";
+  token: string;
+};
 export function providerCredentialsToApiCredentials(credentials: ProviderCredentials | null | undefined): ProviderApiCredentials | undefined {
   if (!credentials?.value) return;
-  if (credentials.type === "mtls")
-    return {
-      type: credentials.type,
-      certPem: credentials.value.cert,
-      keyPem: credentials.value.key
-    };
   return {
     type: credentials.type,
     token: credentials.value

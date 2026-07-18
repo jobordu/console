@@ -7,6 +7,7 @@ import { CommonModule } from "@src/common/common.module";
 import { BrokerModule } from "@src/infrastructure/broker";
 import { DeploymentAlertController } from "@src/interfaces/rest/controllers/deployment-alert/deployment-alert.controller";
 import { HealthzController } from "@src/interfaces/rest/controllers/healthz/healthz.controller";
+import { InternalAccountController } from "@src/interfaces/rest/controllers/internal-account/internal-account.controller";
 import { AlertModule } from "@src/modules/alert/alert.module";
 import { NotificationsModule } from "@src/modules/notifications/notifications.module";
 import { AlertController } from "./controllers/alert/alert.controller";
@@ -15,17 +16,19 @@ import { NotificationChannelController } from "./controllers/notification-channe
 import { AuthInterceptor } from "./interceptors/auth/auth.interceptor";
 import { LocalHttpLoggerMiddleware } from "./interceptors/http-logger/http-logger.middleware";
 import { HttpResultInterceptor } from "./interceptors/http-result/http-result.interceptor";
+import { AccountPurgeService } from "./services/account-purge/account-purge.service";
 import { AuthService } from "./services/auth/auth.service";
 
 @Module({
-  imports: [CommonModule, AlertModule, NotificationsModule, BrokerModule, ConfigModule.forRoot({ isGlobal: true })],
+  imports: [CommonModule, AlertModule, NotificationsModule, BrokerModule, ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true })],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: ZodSerializerInterceptor },
     { provide: APP_INTERCEPTOR, useClass: HttpResultInterceptor },
     { provide: APP_INTERCEPTOR, useClass: AuthInterceptor },
+    AccountPurgeService,
     AuthService
   ],
-  controllers: [AlertController, NotificationChannelController, DeploymentAlertController, HealthzController, JobsController]
+  controllers: [AlertController, NotificationChannelController, DeploymentAlertController, HealthzController, JobsController, InternalAccountController]
 })
 export default class RestModule {
   configure(consumer: MiddlewareConsumer) {

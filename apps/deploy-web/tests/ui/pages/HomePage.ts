@@ -12,4 +12,13 @@ export class HomePage {
   async startTrial() {
     await this.page.getByRole("button", { name: /start trial/i }).click();
   }
+
+  async openSignIn() {
+    await this.page.getByRole("button", { name: /account menu/i }).click();
+    await this.page.getByText("Sign in").click();
+  }
+
+  getAddFundsLink() {
+    return this.page.getByRole("link", { name: /add funds/i });
+  }
 }

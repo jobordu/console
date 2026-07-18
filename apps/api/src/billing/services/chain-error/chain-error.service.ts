@@ -58,6 +58,10 @@ export class ChainErrorService {
       code: 400,
       message: "Cannot create lease: The associated order has already been matched or closed. Re-create the deployment to generate a new order and try again."
     },
+    "invalid unit price": {
+      code: 400,
+      message: "Unit price exceeds the maximum allowed by the network"
+    },
     "insufficient balance": {
       code: 402,
       message: "Insufficient balance"
@@ -137,10 +141,10 @@ export class ChainErrorService {
     denom: string;
   } | null {
     const usdcDenoms = Object.values(this.billingConfigService.get("USDC_IBC_DENOMS"))
-      .map(denom => denom.replace(/\//g, "\\/"))
+      .map(denom => RegExp.escape(denom))
       .join("|");
 
-    const pattern = new RegExp(`(\\d+)(uakt|${usdcDenoms}) is smaller than (\\d+)\\2`);
+    const pattern = new RegExp(`(\\d+)(uakt|uact|${usdcDenoms}) is smaller than (\\d+)\\2`);
 
     const match = message.match(pattern);
 

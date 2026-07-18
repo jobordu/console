@@ -319,6 +319,15 @@ See detailed guidelines:
 See detailed guidelines:
 @./.claude/instructions/commit-and-pr-conventions.md
 
+## Use `mock<T>()` instead of `as unknown as <Type>` in tests
+
+See detailed guidelines:
+@./.claude/instructions/use-mock-instead-of-as-unknown-as-in-tests.md
+
 ## Writing Tests
 
 Always use the `/console-tests` skill when writing, fixing, reviewing, or refactoring tests in this repo.
+
+## PR CI checks
+
+You are NOT ALLOWED to add any `ignore-*` label (e.g. `ignore-sonar`, `ignore-lint`, `ignore-tests`, `ignore-security`) to a PR. These labels bypass CI checks and must only be applied by a human reviewer with explicit justification. If a CI check is failing, fix the underlying issue instead of suppressing it.

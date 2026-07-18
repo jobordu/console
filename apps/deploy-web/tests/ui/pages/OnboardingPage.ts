@@ -3,20 +3,16 @@ import type { Page } from "@playwright/test";
 export class OnboardingPage {
   constructor(readonly page: Page) {}
 
+  async waitForPage() {
+    await this.page.waitForURL(/\/signup/);
+  }
+
   async startFreeTrial() {
     await this.page.getByRole("button", { name: /start free trial/i }).click();
   }
 
-  getEmailVerifiedAlert() {
-    return this.page.getByText("Email Verified");
-  }
-
-  getCheckVerificationButton() {
-    return this.page.getByRole("button", { name: /check verification/i });
-  }
-
-  getContinueButton() {
-    return this.page.getByRole("button", { name: /^continue$/i });
+  getFirstVerificationCodeDigit() {
+    return this.page.getByLabel("Verification code digit 1");
   }
 
   async fillStripeAddress(input: { name: string; line1: string; city: string; state: string; zip: string }) {

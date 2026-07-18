@@ -166,7 +166,7 @@ export const ListWithResourcesParamsSchema = z.object({
 });
 
 export const ListWithResourcesQuerySchema = z.object({
-  status: z.enum(["active", "closed"]).optional().openapi({
+  status: z.enum(["active", "closed"]).openapi({
     description: "Filter by status",
     example: "closed"
   }),
@@ -218,7 +218,7 @@ export const GetDeploymentByOwnerDseqParamsSchema = z.object({
     description: "Owner's Address",
     example: openApiExampleAddress
   }),
-  dseq: DseqSchema.openapi("Deployment DSEQ")
+  dseq: DseqSchema.openapi({ description: "Deployment sequence number" })
 });
 
 export const GetDeploymentByOwnerDseqResponseSchema = z.object({

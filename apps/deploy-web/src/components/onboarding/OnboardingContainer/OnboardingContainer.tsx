@@ -7,7 +7,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { SuccessAnimation } from "@src/components/shared";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useCertificate } from "@src/hooks/useCertificate/useCertificate";
 import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
 import { useNotificator } from "@src/hooks/useNotificator";
 import { useReturnTo } from "@src/hooks/useReturnTo";
@@ -16,7 +15,7 @@ import { usePaymentMethodsQuery } from "@src/queries/usePaymentQueries";
 import { ONBOARDING_STEP_KEY } from "@src/services/storage/keys";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
-import { appendAuditorRequirement, replaceSdlDenom } from "@src/utils/deploymentData/v1beta3";
+import { appendAuditorRequirement, applyTrialGpuPolicy, replaceSdlDenom } from "@src/utils/deploymentData/v1beta3";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { denomToUdenom } from "@src/utils/mathHelpers";
 import { helloWorldTemplate } from "@src/utils/templates";
@@ -51,13 +50,13 @@ const DEPENDENCIES = {
   useServices,
   useRouter,
   useWallet,
-  useCertificate,
   useNotificator,
   useReturnTo,
   localStorage: typeof window !== "undefined" ? window.localStorage : null,
   deploymentData,
   validateDeploymentData,
   appendAuditorRequirement,
+  applyTrialGpuPolicy,
   replaceSdlDenom,
   helloWorldTemplate,
   TransactionMessageData,
@@ -89,7 +88,6 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   } = d.useServices();
   const [selectedNetworkId, setSelectedNetworkId] = networkStore.useSelectedNetworkIdStore();
   const wallet = d.useWallet();
-  const { genNewCertificateIfLocalIsInvalid, updateSelectedCertificate } = d.useCertificate();
   const notificator = d.useNotificator();
   const { navigateBack } = d.useReturnTo({ defaultReturnTo: "/" });
 
@@ -276,6 +274,9 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         if (wallet.isManaged && wallet.denom && wallet.denom !== "uakt") {
           sdl = d.replaceSdlDenom(sdl, wallet.denom);
         }
+        if (wallet.isTrialing) {
+          sdl = d.applyTrialGpuPolicy(sdl);
+        }
 
         const minDepositAmount = wallet.denom === "uact" ? minDeposit.act : wallet.denom !== "uakt" && wallet.isManaged ? minDeposit.act : minDeposit.akt;
         const deposit = d.denomToUdenom(minDepositAmount);
@@ -287,20 +288,10 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         }
 
         const messages: EncodeObject[] = [];
-        const newCert = await genNewCertificateIfLocalIsInvalid();
-
-        if (newCert) {
-          messages.push(d.TransactionMessageData.getCreateCertificateMsg(wallet.address, newCert.cert, newCert.publicKey));
-        }
-
         messages.push(d.TransactionMessageData.getCreateDeploymentMsg(dd));
         const response = await wallet.signAndBroadcastTx(messages);
 
         if (response) {
-          if (newCert) {
-            await updateSelectedCertificate(newCert);
-          }
-
           deploymentLocalStorage.update(wallet.address, dd.deploymentId.dseq, {
             manifest: sdl,
             manifestVersion: dd.hash,
@@ -315,7 +306,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
 
           d.localStorage?.removeItem(ONBOARDING_STEP_KEY);
           wallet.connectManagedWallet();
-          router.push(urlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
+          router.replace(urlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
         }
       } catch (error) {
         notificator.error("Failed to deploy template. Please try again.");
@@ -329,8 +320,6 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       templateService,
       chainApiHttpClient,
       minDeposit,
-      genNewCertificateIfLocalIsInvalid,
-      updateSelectedCertificate,
       deploymentLocalStorage,
       analyticsService,
       notificator,

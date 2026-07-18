@@ -46,7 +46,6 @@ const getSafeReturnableUrl = (destination: string, currentLocation?: string, ext
 export class UrlService {
   static home = () => "/";
   static getStarted = () => "/get-started";
-  static getStartedWallet = (section?: string) => `/get-started/wallet${appendSearchParams({ section })}`;
 
   static sdlBuilder = (id?: string) => `/sdl-builder${appendSearchParams({ id })}`;
   static plainLinux = () => `/deploy-linux`;
@@ -78,8 +77,8 @@ export class UrlService {
     getSafeReturnableUrl(`/login${appendSearchParams({ tab: "signup" })}`, returnTo, extraReturnToParams);
   static logout = () => "/api/auth/logout";
   static onboarding = ({ returnTo }: ReturnableOptions = {}) => getSafeReturnableUrl("/signup", returnTo);
+  static onboardingPicker = () => "/onboarding";
   static template = (id: string) => `/template/${id}`;
-  static mintBurn = () => "/mint-burn";
 
   // Deploy
   static deploymentList = () => `/deployments`;
@@ -96,8 +95,6 @@ export class UrlService {
   static notificationChannels = () => "/alerts/notification-channels";
   static newNotificationChannel = () => "/alerts/notification-channels/new";
   static notificationChannelDetails = (id: string) => `/alerts/notification-channels/${id}`;
-  static settings = () => "/settings";
-  static settingsAuthorizations = () => "/settings/authorizations";
 
   static newDeployment = (params: NewDeploymentParams = {}) => {
     const {

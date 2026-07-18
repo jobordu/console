@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useSetAtom } from "jotai";
 import { useSearchParams } from "next/navigation";
 import { z } from "zod";
 
@@ -9,12 +10,22 @@ import { useFlag } from "@src/hooks/useFlag";
 import type { UrlReturnToStack } from "@src/hooks/useReturnTo/UrlReturnToStack";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import { isAuthenticated, isFeatureEnabled } from "@src/lib/nextjs/pageGuards/pageGuards";
+import { definePublicPage } from "@src/lib/pages/definePublicPage";
+import onboardingStore from "@src/store/onboardingStore";
 import type { UrlService } from "@src/utils/urlUtils";
 
-export default () => {
+const LoginPage = () => {
   const isEmbeddedLoginEnabled = useFlag("console_embedded_login");
   const searchParams = useSearchParams();
   const { urlService, windowLocation, urlReturnToStack } = useServices();
+  const setSelectedOnboardingFlow = useSetAtom(onboardingStore.selectedOnboardingFlow);
+
+  useEffect(
+    function markOnboardingFlowAsLegacy() {
+      setSelectedOnboardingFlow("legacy");
+    },
+    [setSelectedOnboardingFlow]
+  );
 
   useEffect(() => {
     if (!isEmbeddedLoginEnabled) {
@@ -34,8 +45,11 @@ export default () => {
   return <Loading text="Loading..." />;
 };
 
+export default definePublicPage(LoginPage);
+
 export const getServerSideProps = defineServerSideProps({
   route: "/login",
+  public: true,
   schema: z.object({
     query: z.object({
       tab: z.enum(["login", "signup", "forgot-password"]).default("login"),
